@@ -6,6 +6,7 @@ import { Stack } from '@grafana/experimental';
 import { Badge, Button, CodeEditor, Icon, Tooltip, useStyles2 } from '@grafana/ui';
 import { TestTemplateAlert } from 'app/plugins/datasource/alertmanager/types';
 
+import { AlertInstanceModalSelector } from './AlertInstanceModalSelector';
 import { GenerateAlertDataModal } from './form/GenerateAlertDataModal';
 
 export const RESET_TO_DEFAULT = 'Reset to default';
@@ -48,11 +49,14 @@ export function PayloadEditor({
   };
   const onAddAlertList = (alerts: TestTemplateAlert[]) => {
     onCloseEditAlertModal();
+    setIsAlertSelectorOpen(false);
     setPayload((payload) => {
       const payloadObj = JSON.parse(payload);
       return JSON.stringify([...payloadObj, ...alerts], undefined, 2);
     });
   };
+
+  const [isAlertSelectorOpen, setIsAlertSelectorOpen] = useState(false);
 
   return (
     <div className={styles.wrapper}>
@@ -87,6 +91,9 @@ export function PayloadEditor({
           >
             Add alert data
           </Button>
+          <Button type="button" variant="secondary" icon="bell" onClick={() => setIsAlertSelectorOpen(true)}>
+            Choose alert instances
+          </Button>
           {payloadFormatError !== null && (
             <Badge
               color="orange"
@@ -98,6 +105,11 @@ export function PayloadEditor({
         </Stack>
       </Stack>
       <GenerateAlertDataModal isOpen={isEditingAlertData} onDismiss={onCloseEditAlertModal} onAccept={onAddAlertList} />
+      <AlertInstanceModalSelector
+        onSelect={onAddAlertList}
+        isOpen={isAlertSelectorOpen}
+        onClose={() => setIsAlertSelectorOpen(false)}
+      />
     </div>
   );
 }
