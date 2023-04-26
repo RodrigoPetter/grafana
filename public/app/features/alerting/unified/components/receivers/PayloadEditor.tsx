@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 import { Stack } from '@grafana/experimental';
-import { Badge, Button, Icon, TextArea, Tooltip, useStyles2 } from '@grafana/ui';
+import { Badge, Button, CodeEditor, Icon, Tooltip, useStyles2 } from '@grafana/ui';
 import { TestTemplateAlert } from 'app/plugins/datasource/alertmanager/types';
 
 import { GenerateAlertDataModal } from './form/GenerateAlertDataModal';
@@ -63,16 +63,16 @@ export function PayloadEditor({
             <Icon name="info-circle" className={styles.tooltip} size="xl" />
           </Tooltip>
         </div>
-        <TextArea
-          required={true}
+
+        <CodeEditor
+          width={640}
+          height={326}
+          language={'json'}
+          showLineNumbers={true}
+          showMiniMap={false}
           value={payload}
-          onChange={(e) => {
-            setPayload(e.currentTarget.value);
-          }}
-          data-testid="payloadJSON"
-          className={styles.jsonEditor}
-          rows={10}
-          cols={50}
+          readOnly={false}
+          onBlur={setPayload}
         />
         <Stack>
           <Button onClick={onReset} className={styles.button} icon="arrow-up" type="button" variant="secondary">
