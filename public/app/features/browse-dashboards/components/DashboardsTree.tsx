@@ -1,6 +1,6 @@
 import { css, cx } from '@emotion/css';
 import React, { useMemo } from 'react';
-import { CellProps, Column, TableInstance, useTable } from 'react-table';
+import { TableInstance, useTable } from 'react-table';
 import { FixedSizeList as List } from 'react-window';
 
 import { GrafanaTheme2 } from '@grafana/data';
@@ -8,8 +8,15 @@ import { selectors } from '@grafana/e2e-selectors';
 import { Checkbox, useStyles2 } from '@grafana/ui';
 import { DashboardViewItem, DashboardViewItemKind } from 'app/features/search/types';
 
-import { DashboardsTreeItem, DashboardTreeSelection, INDENT_AMOUNT_CSS_VAR } from '../types';
+import {
+  DashboardsTreeCellProps,
+  DashboardsTreeColumn,
+  DashboardsTreeItem,
+  INDENT_AMOUNT_CSS_VAR,
+  SelectionState,
+} from '../types';
 
+import CheckboxCell from './CheckboxCell';
 import { NameCell } from './NameCell';
 import { TagsCell } from './TagsCell';
 import { TypeCell } from './TypeCell';
@@ -19,17 +26,10 @@ interface DashboardsTreeProps {
   items: DashboardsTreeItem[];
   width: number;
   height: number;
-  selectedItems: DashboardTreeSelection;
+  isSelected: (kind: DashboardViewItemKind, uid: string) => SelectionState;
   onFolderClick: (uid: string, newOpenState: boolean) => void;
   onItemSelectionChange: (item: DashboardViewItem, newState: boolean) => void;
 }
-
-type DashboardsTreeColumn = Column<DashboardsTreeItem>;
-type DashboardsTreeCellProps = CellProps<DashboardsTreeItem, unknown> & {
-  // Note: userProps for cell renderers (e.g. second argument in `cell.render('Cell', foo)` )
-  // aren't typed, so we must be careful when accessing this
-  selectedItems?: DashboardsTreeProps['selectedItems'];
-};
 
 const HEADER_HEIGHT = 35;
 const ROW_HEIGHT = 35;
@@ -38,7 +38,7 @@ export function DashboardsTree({
   items,
   width,
   height,
-  selectedItems,
+  isSelected,
   onFolderClick,
   onItemSelectionChange,
 }: DashboardsTreeProps) {
@@ -49,21 +49,7 @@ export function DashboardsTree({
       id: 'checkbox',
       width: 0,
       Header: () => <Checkbox value={false} />,
-      Cell: ({ row: { original: row }, selectedItems }: DashboardsTreeCellProps) => {
-        const item = row.item;
-        if (item.kind === 'ui-empty-folder' || !selectedItems) {
-          return <></>;
-        }
-
-        const isSelected = selectedItems?.[item.kind][item.uid] ?? false;
-        return (
-          <Checkbox
-            data-testid={selectors.pages.BrowseDashbards.table.checkbox(item.uid)}
-            value={isSelected}
-            onChange={(ev) => onItemSelectionChange(item, ev.currentTarget.checked)}
-          />
-        );
-      },
+      Cell: CheckboxCell,
     };
 
     const nameColumn: DashboardsTreeColumn = {
@@ -88,17 +74,19 @@ export function DashboardsTree({
     };
 
     return [checkboxColumn, nameColumn, typeColumn, tagsColumns];
-  }, [onItemSelectionChange, onFolderClick]);
+  }, [onFolderClick]);
 
   const table = useTable({ columns: tableColumns, data: items }, useCustomFlexLayout);
   const { getTableProps, getTableBodyProps, headerGroups } = table;
 
-  const virtualData = useMemo(() => {
-    return {
+  const virtualData = useMemo(
+    () => ({
       table,
-      selectedItems,
-    };
-  }, [table, selectedItems]);
+      isSelected,
+      onItemSelectionChange,
+    }),
+    [table, isSelected, onItemSelectionChange]
+  );
 
   return (
     <div {...getTableProps()} className={styles.tableRoot} role="table">
@@ -142,13 +130,14 @@ interface VirtualListRowProps {
   style: React.CSSProperties;
   data: {
     table: TableInstance<DashboardsTreeItem>;
-    selectedItems: Record<DashboardViewItemKind, Record<string, boolean | undefined>>;
+    isSelected: DashboardsTreeCellProps['isSelected'];
+    onItemSelectionChange: DashboardsTreeCellProps['onItemSelectionChange'];
   };
 }
 
 function VirtualListRow({ index, style, data }: VirtualListRowProps) {
   const styles = useStyles2(getStyles);
-  const { table, selectedItems } = data;
+  const { table, isSelected, onItemSelectionChange } = data;
   const { rows, prepareRow } = table;
 
   const row = rows[index];
@@ -165,7 +154,7 @@ function VirtualListRow({ index, style, data }: VirtualListRowProps) {
 
         return (
           <div key={key} {...cellProps} className={styles.cell}>
-            {cell.render('Cell', { selectedItems })}
+            {cell.render('Cell', { isSelected, onItemSelectionChange })}
           </div>
         );
       })}
